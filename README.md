@@ -29,7 +29,7 @@ so called folds. The stratification ensures that each fold has approximately the
 same proportion of deceased and alive patients as the original MIMIC-III data
 set.
 
-#Results
+# Results
 
 We evaluated the use case of mortality prediction with ELKI
 and Weka in terms of their implementation effort as well as their classification
