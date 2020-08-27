@@ -1,21 +1,16 @@
 package de.goe.knowledge.engineering.predictivemodels;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 
-import org.apache.mahout.cf.taste.impl.model.file.FileDataModel;
-import org.apache.mahout.cf.taste.impl.similarity.EuclideanDistanceSimilarity;
-import org.apache.mahout.cf.taste.model.DataModel;
 
 import de.lmu.ifi.dbs.elki.distance.distancefunction.CosineDistanceFunction;
 import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.EuclideanDistanceFunction;
 import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.ManhattanDistanceFunction;
 import de.lmu.ifi.dbs.elki.evaluation.classification.ConfusionMatrix;
 import weka.core.EuclideanDistance;
+import weka.core.ManhattanDistance;
 import weka.core.Instances;
+
 
 /**
  * Implementing a new similarity (or distance) interface for ELKI and Apache
@@ -38,193 +33,283 @@ import weka.core.Instances;
  * 
  * DEAD = 4284 (TN + FP) ALIVE = 28351 (TP + FN)
  */
+
+
 public class App {
 
+	static int numberOfAttributes = 0;
+	static enum modes {Undersample, Bootstrap, SMOTE, NoResampling};
+	
+	// Distance functions
+	static String[] evalName = {"ELKI Euclidean", "ELKI Manhattan",
+								"ELKI Cosine", "Weka Euclidean",
+								"Weka Manhattan", "Weka Cosine"};
+	static de.lmu.ifi.dbs.elki.distance.distancefunction.DistanceFunction<?>[]
+			distFunctionElki = {EuclideanDistanceFunction.STATIC,
+								ManhattanDistanceFunction.STATIC,
+								CosineDistanceFunction.STATIC};
+	static weka.core.DistanceFunction[] 
+			distFunctionWeka = {/*new EuclideanDistance(),
+								new ManhattanDistance(),
+								new WekaCosineDistance()*/};
+
+	// Command-line arguments
+	static double evalDelta = 0.001d;
+	static int evalNDelta = 5; // n_delta: Number of times the evaluation delta has to be smaller than epsilon in a row to finish
+	static int[] kVals = { 5 };
+	static int resumeFrom = 0; // ID of the distance function to resume from (in case of crashes).
+	static boolean verbose = false;
+	static boolean display = false;
+	static boolean saveOversampledDatasets = false;
+	static modes mode = modes.Bootstrap;
+	static int randomSeed = 1;
+	
+	// Main files
+	static String inputFile = "data/weka_shortened_test2.arff";
+	static String outputFile= "results/results.csv";
+	
+	
+	// Option used for debugging
+	static int measurementId = 0;
+	
+	
 	public static void main(String[] args) throws Exception {
-		// Create Files
-		// ArrayList<String> features = getFeatures(new ArrayList<String>());
-		// DataFromDatabase db = new DataFromDatabase();
-		// db.createDataModelCSV(features, "model_top20");
-		// db.createElkiCSV(features, "elki_alive");
-		// db.createFrameworkFile(getFeatures(new ArrayList<>()), "weka_TESCHT", 2);
-		// System.out.println("DONE");
-
-		// Undersampling o = new Undersampling("weka_alive_smote");
-		// Undersampling o2 = new Undersampling("weka_alive_Top20_smote");
-		// CSVTransformer csv = new CSVTransformer();
-		// csv.CSVTransformerWeka2Elki("weka_alive_undersampling_undersampledSMOTE",
-		// "elki_alive_undersampling_undersampledSMOTE", getFeatures(new
-		// ArrayList<>()));
-		// csv.CSVTransformerWeka2Elki("weka_undersampling_centroids",
-		// "elki_undersampling.centroids",
-		// getFeatures(new ArrayList<>()));
-
-		// KNN ELKI
-		int[] kVals = { 1, 3, 5, 9, 15, 25 };
-
-		System.out.println("ELKI");
-		String elkiFile = "data/elki_undersampling.centroids.csv";
-
-		// Changes from getFeatures() to getSelected() if you use Top20 file
-		// int numFeatures = getFeatures(new ArrayList<>()).size();
-		// if (elkiFile.contains("Top20")) {
-		// numFeatures = getSelected(new ArrayList<>()).size();
-		// }
-
-		for (int i = 0; i < kVals.length; i++) {
-			// double[] f = new double[numFeatures];
-			// int val = numFeatures - 70;
-			// for (int j = 0; j < numFeatures; j++) {
-			// if (j > kVals[i]) {
-			// f[j] = 80;
-			// } else {
-			// f[j] = val--;
-			// }
-			// System.out.println(f[j]);
-			// }
-
-			// WeightedEuclideanDistanceFunction wg = new
-			// WeightedEuclideanDistanceFunction(f);
-			// long startTime = System.nanoTime();
-			// ElkiKNN<Object> knnE = new ElkiKNN<Object>(kVals[i], wg, elkiFile);
-			// ConfusionMatrix m = knnE.run();
-			// timeStopper(kVals[i], startTime);
-			//
-			// Evaluation e = new Evaluation(m.truePositives(0), m.falseNegatives(0),
-			// m.falsePositives(0),
-			// m.trueNegatives(0));
-			// e.accuracy();
-			// e.precision();
-			// e.recall();
-			// e.specificity();
-
-			// System.out.println("________________ OWN ________________ ");
-			// long startTime = System.nanoTime();
-			// ElkiKNN<Object> knnE = new ElkiKNN<Object>(kVals[i],
-			// ElkiDatabaseDistanceFunction.STATIC, elkiFile);
-			// ConfusionMatrix m = knnE.run();
-			// timeStopper(kVals[i], startTime);
-			//
-			// Evaluation e = new Evaluation(m.truePositives(0), m.falseNegatives(0),
-			// m.falsePositives(0),
-			// m.trueNegatives(0));
-			// e.accuracy();
-			// e.precision();
-			// e.recall();
-			// e.specificity();
-
-			System.out.println("________________ EUCLIDEAN ________________ ");
-			long startTime = System.nanoTime();
-			ElkiKNN<Object> knnE = new ElkiKNN<Object>(kVals[i], EuclideanDistanceFunction.STATIC, elkiFile);
-			ConfusionMatrix m = knnE.run();
-			timeStopper(kVals[i], startTime);
-
-			Evaluation e = new Evaluation(m.truePositives(0), m.falseNegatives(0), m.falsePositives(0),
-					m.trueNegatives(0));
-			e.accuracy();
-			e.precision();
-			e.recall();
-			e.specificity();
-
-			System.out.println("________________ MANHATTAN ________________ ");
-			long startTime2 = System.nanoTime();
-			ElkiKNN<Object> knnE2 = new ElkiKNN<Object>(kVals[i], ManhattanDistanceFunction.STATIC, elkiFile);
-			ConfusionMatrix m2 = knnE2.run();
-			timeStopper(kVals[i], startTime2);
-
-			Evaluation e2 = new Evaluation(m2.truePositives(0), m2.falseNegatives(0), m2.falsePositives(0),
-					m2.trueNegatives(0));
-			e2.accuracy();
-			e2.precision();
-			e2.recall();
-			e2.specificity();
-
-			System.out.println("________________ COSINE ________________ ");
-			long startTime3 = System.nanoTime();
-			ElkiKNN<Object> knnE3 = new ElkiKNN<Object>(kVals[i], CosineDistanceFunction.STATIC, elkiFile);
-			ConfusionMatrix m3 = knnE3.run();
-			timeStopper(kVals[i], startTime3);
-
-			Evaluation e3 = new Evaluation(m3.truePositives(0), m3.falseNegatives(0), m3.falsePositives(0),
-					m3.trueNegatives(0));
-			e3.accuracy();
-			e3.precision();
-			e3.recall();
-			e3.specificity();
-			System.out.println("---------------------------------------------------------");
-		}
-
-		System.out.println("---------------------------------------------------------");
-		// KNN MAHOUT
-		System.out.println("MAHOUT");
-		String path2CSVFile = "data/model.csv";
-		DataFromDatabase dfdb = new DataFromDatabase();
-		HashMap<Integer, String> patientMortalityMap = new HashMap<>();
-		dfdb.setPatientMortalityMap(patientMortalityMap);
-
-		try {
-			for (int i = 0; i < kVals.length; i++) {
-				long startTime = System.nanoTime();
-				DataModel model = new FileDataModel(new File(path2CSVFile));
-				DataFromDatabase bfdb = new DataFromDatabase();
-
-				// Parameters to change
-				MahoutKNN knnM = new MahoutKNN(kVals[i], new EuclideanDistanceSimilarity(model), model, bfdb);
-
-				org.apache.mahout.classifier.ConfusionMatrix mm = knnM.run();
-				timeStopper(kVals[i], startTime);
-
-				int[][] matrix = mm.getConfusionMatrix();
-
-				Evaluation e = new Evaluation(matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1]);
-				e.accuracy();
-				e.precision();
-				e.recall();
-				System.out.println("---------------------------------------------------------");
+		// Parse input args
+		for (int i = 0; i < args.length; i++) {
+			switch (args[i]) {
+				case "-i":
+				case "--input":
+					inputFile = args[++i];
+					break;
+				
+				case "-o":
+				case "--output":
+					outputFile = args[++i];
+					break;
+				
+				case "-d":
+				case "--delta":
+					evalDelta = Double.parseDouble(args[++i]);
+					break;
+				
+				case "-n":
+				case "--nd":
+				case "--ndelta":
+					evalNDelta = Integer.parseInt(args[++i]);
+					break;
+					
+				case "--resumefrom":
+					resumeFrom = Integer.parseInt(args[++i]);
+					break;
+				
+				case "--verbose":
+					verbose = true;
+					break;
+				
+				case "--display":
+					display = true;
+					break;
+					
+				case "--saveoversampleddatasets":
+					saveOversampledDatasets = true;
+					break;
+				
+				case "-m":
+				case "--mode":
+					String arg = args[++i].replace("\n", "").replace("\r", "");
+					int argi = Integer.parseInt(args[i]);
+					if (arg == "smote" || argi == 1) {
+						mode = modes.SMOTE;
+						System.out.println ("Mode: SMOTE");
+						break;
+					}
+					if (arg == "undersample" || argi == 2) {
+						mode = modes.Undersample;
+						System.out.println ("Mode: Undersampling");
+						break;
+					}
+					if (arg == "none" || argi == 3) {
+						mode = modes.NoResampling;
+						System.out.println ("Mode: No resampling");
+						break;
+					}
+					System.out.println ("Mode: Oversampling");
+					break;
+				
+				case "-k":
+					kVals = new int[]{Integer.parseInt(args[++i])};
+					break;
+					
+				case "-s":
+				case "--seed":
+					randomSeed = Integer.parseInt(args[++i]);
+					break;
+				
+				default:
+					System.out.println ("Unknown parameter " + args[i] + "\nAborting...");
+					System.exit(1);
 			}
-		} catch (IOException e) {
-			System.err.println("The program was aborted. \n " + "The file " + path2CSVFile + " could not be found.");
 		}
+		// Analyzer initialization
+		Analyzer analyzer = new Analyzer();
+		
+		
+		// CV parameters
+		int numberOfPartitions = 10;
+		boolean resampleExistingEntries = true;
+		double ratioAlive = 1d;
+		BootstrapCrossValidator cv = new BootstrapCrossValidator(InstancesHelper.loadInstancesFromFile(inputFile), numberOfPartitions, resampleExistingEntries, ratioAlive);
+		cv.partition();
+		numberOfAttributes = cv.getThisFold()[0].numAttributes();
+		
+		// Misc. initialization
+		double time;
+		measurementId = 0;
 
-		// KNN WEKA
-		System.out.println("WEKA");
-
-		String file = "weka_alive_undersampling.arff";
-
+		// Main Loop
 		for (int i = 0; i < kVals.length; i++) {
-			System.out.println("________________ EUCLIDEAN ________________ ");
-			long startTime = System.nanoTime();
-			FileReader reader = new FileReader("data/" + file);
+	//		// KNN ELKI
+			System.out.println("ELKI");
+			for (int j = 0; j < distFunctionElki.length; j++) {
+				if (j < resumeFrom) {
+					continue;
+				}
+				kNNEvaluation evaluation;
+				System.out.println("___ " + evalName[j] + " ___");
+				do { // This do-while repeats until sufficiently small delta in stat. values has been reached
+					measurementId++;
+					System.out.print ("Measurement " + measurementId + ": " + evalName[j]);
+					evaluation = new kNNEvaluation(evalName[j]);
+					analyzer.addEvaluation(evaluation);
+					cv.reset();
+					String trainingFile = "data/folds/" + (measurementId < 100?"0":"") + (measurementId < 10?"0":"") + measurementId + "-" + evalName[j] + "-" + cv.getCurrentFoldTrainingFilePath();
+					String testFile = "data/folds/" + (measurementId < 100?"0":"") + (measurementId < 10?"0":"") + measurementId + "-" + evalName[j] + "-" + cv.getCurrentFoldTestFilePath();
+					
+					if (!saveOversampledDatasets) {
+						trainingFile = "data/folds/training";
+						testFile = "data/folds/test";
+					}
 
-			Instances data = new Instances(reader);
-			// last column is the classifier
-			data.setClassIndex(data.numAttributes() - 1);
-			WekaKNN knnW = new WekaKNN(kVals[i], new EuclideanDistance(), file);
+					String testFileClassless = testFile + "-noclass";
+					while (cv.hasNext()) {
+						randomSeed++;
+						long startTime = System.nanoTime();
+//						if (verbose) {
+//							System.out.println ("current fold: " + cv.getCurrentFold());
+//						}
+						System.out.print(", " + cv.getCurrentFold());
+						cv.getNextFold();
+						
+						// Save folds to file
+						cv.saveFoldToArff(trainingFile + ".arff", testFile + ".arff");
+						
+						// Transform to ELKI readable format
+						long deltaTime = System.nanoTime() - startTime;
+						CSVTransformer csvt = new CSVTransformer();
+						csvt.CSVTransformerWeka2Elki(false, true,
+								trainingFile + ".arff",
+								trainingFile + ".csv",
+								getFeatures(new ArrayList<String>()));
+						csvt.CSVTransformerWeka2Elki(false, true, testFile + ".arff",
+								testFile + ".csv", 
+								getFeatures(new ArrayList<String>()));
 
-			double[][] matrix = knnW.run();
-			timeStopper(kVals[i], startTime);
+						// Cut out the time transformation took (since this is a process not native to ELKI)
+						startTime -= (deltaTime); 
+						
+						
+						// Init & run algo
+						ElkiKNN<Object> knnE = new ElkiKNN<Object>(kVals[i],
+																	distFunctionElki[j],
+																	trainingFile + ".csv",
+																	testFile + ".csv",
+																	testFileClassless + ".csv");
+						ConfusionMatrix m = knnE.run();
+						time = timeStopper(kVals[i], startTime);
+						kNNEvaluation result = new kNNEvaluation(evalName[j] + "(it)", m.truePositives(0), m.falseNegatives(0), m.falsePositives(0),
+								m.trueNegatives(0), kVals[i], time);
+//						result.print();
+						evaluation.addValuesToEvaluation(result);
+						// Try to lose all ELKI references to clean up memory
+						knnE = null;
+						System.gc();
 
-			Evaluation e = new Evaluation(matrix[1][1], matrix[1][0], matrix[0][1], matrix[0][0]);
-			e.accuracy();
-			e.precision();
-			e.recall();
-			e.specificity();
+					}
+					System.out.println();
+					
+					if (verbose) {
+						System.out.println ("Evaluation result: ");
+						evaluation.print();
+					}
+				} while(!analyzer.checkEvaluationDelta(evaluation, evalDelta, evalNDelta));
+				
+			}
+			// KNN WEKA
+			System.out.println("WEKA");
+			for (int j = 0; j < distFunctionWeka.length; j++) {
+				if (j + distFunctionElki.length < resumeFrom) {
+					continue;
+				}
+				System.out.println("___ " + evalName[j+distFunctionElki.length] + " ___");
+				kNNEvaluation evaluation;
+				do { // This do-while repeats until sufficiently small delta in stat. values has been reached
+					measurementId++;
+					System.out.print ("Measurement " + measurementId + ": " + evalName[j+distFunctionElki.length]);
+					cv.reset();	
+					evaluation = new kNNEvaluation(evalName[j+distFunctionElki.length]);
+					analyzer.addEvaluation(evaluation);
+					String trainingFile = "data/folds/" + (measurementId < 100?"0":"") + (measurementId < 10?"0":"") + measurementId + "-" + evalName[j+distFunctionElki.length] + "-" + cv.getCurrentFoldTrainingFilePath();
+					String testFile = "data/folds/" + (measurementId < 100?"0":"") + (measurementId < 10?"0":"") + measurementId + "-" + evalName[j+distFunctionElki.length] + "-" + cv.getCurrentFoldTestFilePath();
+					if (!saveOversampledDatasets) {
+						trainingFile = "data/folds/training";
+						testFile = "data/folds/test";
+					}
+					
+					while (cv.hasNext()) {
+						randomSeed++;
+						long startTime = System.nanoTime();
+//						if (verbose) {
+//							System.out.println ("current fold: " + cv.getCurrentFold());
+//						}
+						System.out.print(", " + cv.getCurrentFold());
+						Instances[] fold = cv.getNextFold();
+						
+						// Save folds to file
+						if (saveOversampledDatasets) {
+							cv.saveFoldToArff(trainingFile + ".arff", testFile + ".arff");
+						}
+						
+						// Init & run algo
+						WekaKNN knnW = new WekaKNN(kVals[i], distFunctionWeka[j], fold[0], fold[1]);
+						
+						double[][] matrix = knnW.run();
+						time = timeStopper(kVals[i], startTime);
+			
+						kNNEvaluation result = new kNNEvaluation(evalName[j+distFunctionElki.length] + "(it)" + fold, matrix[0][0], matrix[0][1], matrix[1][0], matrix[1][1], kVals[i], time);
+//						result.print();
+						evaluation.addValuesToEvaluation(result);
+						knnW = null;
+						System.gc();
+						
+					}
+					System.out.println();
+					
+					if (verbose) {
+						evaluation.print();
+						System.out.println ("Evaluation result: ");
+					}
+				} while(!analyzer.checkEvaluationDelta(evaluation, evalDelta, evalNDelta));
+			}
 
-			System.out.println("________________ MANHATTAN ________________ ");
-			long startTime1 = System.nanoTime();
-			WekaKNN knnW1 = new WekaKNN(kVals[i], new weka.core.ManhattanDistance(), file);
-
-			double[][] matrix1 = knnW1.run();
-			timeStopper(kVals[i], startTime1);
-
-			Evaluation e1 = new Evaluation(matrix1[1][1], matrix1[1][0], matrix1[0][1], matrix1[0][0]);
-			e1.accuracy();
-			e1.precision();
-			e1.recall();
-			e1.specificity();
-			System.out.println("---------------------------------------------------------");
 		}
-	}
+		
+		if (display) {
+			analyzer.displayChart(); // Display frame with bar chart of the results
+		}
+		System.out.println(analyzer.getResultsAsHumanReadableString(verbose));
+		analyzer.saveAsCSV(outputFile);
+}
+
 
 	public static ArrayList<String> getFeatures(ArrayList<String> featureList) {
 		featureList.add("urine_6h");
@@ -329,10 +414,11 @@ public class App {
 		return featureList;
 	}
 
-	public static void timeStopper(int k, long startTime) {
+	public static double timeStopper(int k, long startTime) {
 		long eucStopTime = System.nanoTime();
 		long eucDuration = eucStopTime - startTime;
-		final double eucMinutes = ((double) eucDuration * 0.0000000000166667);
-		System.out.println("k = " + k + " took " + eucMinutes + "min");
+//		final double eucMinutes = ((double) eucDuration * 0.0000000000166667);
+//		System.out.println("k = " + k + " took " + eucMinutes + "min");
+		return eucDuration;
 	}
 }
