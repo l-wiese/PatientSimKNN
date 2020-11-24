@@ -13,11 +13,9 @@ The employed machine learning tools offer several distance implementations.
 We chose three common distance measures: Manhattan and Euclidean of the Minkowski family as well as the Cosine Distance.
 
 To figure out which framework as well as which k and distance measure to
-choose to gain the most accurate and reliable kNN model, we calculated dif-
-ferent performance metrics (accuracy, precision, recall and specificity) from the confusion matrices resulting from our prediction models. The positive/majority class in our data
+choose to gain the most accurate and reliable kNN model, we calculated different performance metrics (accuracy, precision, recall and specificity) from the confusion matrices resulting from our prediction models. The positive/majority class in our data
 set is the set of surviving patients; the negative/minority class is the set of
-deceased patients. Hence, the true positives (TP) are all correctly classified sur-
-viving patients, while true negatives (TN) are all correctly classified deceased
+deceased patients. Hence, the true positives (TP) are all correctly classified surviving patients, while true negatives (TN) are all correctly classified deceased
 patients. Correspondingly, the false positives (FP) are all patients classified as
 surviving although they actually died; the false negatives (FN) are all patients
 classified as deceased although they actually survived.
